@@ -9,7 +9,6 @@ export default props => {
             event.preventDefault();
           }}
         >
-          >
           <input id="email" type="email" placeholder="Email address" />
           <input id="password" type="password" placeholder="Password" />
           <button>Log in</button>

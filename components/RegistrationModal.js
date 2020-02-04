@@ -1,20 +1,23 @@
 import { useState } from "react";
+import axios from "axios";
 
 export default props => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordconfirmation, setPasswordconfirmation] = useState("");
-
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const submit = async () => {
+    const response = await axios.post("/api/auth/register", {
+      email,
+      password,
+      passwordConfirmation
+    });
+    console.log(response);
+  };
   return (
     <>
       <h2>Sign up</h2>
       <div>
-        <form
-          onSubmit={event => {
-            console.log(email, password, passwordconfirmation);
-            event.preventDefault();
-          }}
-        >
+        <form onSubmit={submit}>
           <input
             id="email"
             type="email"
@@ -31,7 +34,7 @@ export default props => {
             id="passwordconfirmation"
             type="password"
             placeholder="Enter password again"
-            onChange={event => setPasswordconfirmation(event.target.value)}
+            onChange={event => setPasswordConfirmation(event.target.value)}
           />
           <button>Sign up</button>
         </form>

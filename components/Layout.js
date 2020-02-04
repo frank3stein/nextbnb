@@ -1,13 +1,27 @@
 import Header from "./Header";
 import Modal from "./Modal";
-import { useState } from "react";
+// import { useState } from "react";
 import RegistrationModal from "../components/RegistrationModal";
 import LoginModal from "../components/LoginModal";
+import { useStoreState, useStoreActions } from "easy-peasy";
 
 const Layout = props => {
-  const [showModal, setShowModal] = useState(true);
-  const [showLoginModal, setShowLoginModal] = useState(true);
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  // const [showModal, setShowModal] = useState(true);
+  // const [showLoginModal, setShowLoginModal] = useState(true);
+  // const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const showModal = useStoreState(state => state.modals.showModal);
+  const showLoginModal = useStoreState(state => state.modals.showLoginModal);
+  const showRegistrationModal = useStoreState(
+    state => state.modals.showRegistrationModal
+  );
+
+  const setHideModal = useStoreActions(actions => actions.modals.setHideModal);
+  const setShowRegistrationModal = useStoreActions(
+    actions => actions.modals.setShowRegistrationModal
+  );
+  const setShowLoginModal = useStoreActions(
+    actions => actions.modals.setShowLoginModal
+  );
   return (
     <div>
       <Header {...props}></Header>
@@ -15,22 +29,20 @@ const Layout = props => {
       {showModal && (
         <Modal
           close={() => {
-            setShowModal(false);
+            setHideModal();
           }}
         >
           {(showLoginModal && (
             <LoginModal
               showRegistration={() => {
-                setShowLoginModal(false);
-                setShowRegistrationModal(true);
+                setShowRegistrationModal();
               }}
             />
           )) ||
             (showRegistrationModal && (
               <RegistrationModal
                 showLogin={() => {
-                  setShowLoginModal(true);
-                  setShowRegistrationModal(false);
+                  setShowLoginModal();
                 }}
               />
             ))}

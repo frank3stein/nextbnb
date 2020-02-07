@@ -1,17 +1,33 @@
-import { useState } from "react";
-import axios from "axios";
+const { useState } = require("react");
+const axios = require("axios");
 
 export default props => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const submit = async () => {
-    const response = await axios.post("/api/auth/register", {
-      email,
-      password,
-      passwordConfirmation
-    });
-    console.log(response);
+    // const response = await axios.post("/api/auth/register", {
+    //   email,
+    //   password,
+    //   passwordConfirmation
+    // });
+    // console.log(response);
+    try {
+      const response = await axios.post("api/auth/register", {
+        email,
+        password,
+        passwordConfirmation
+      });
+      console.log(response);
+      if (response.data.status === "error") {
+        alert(response.data.error);
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+      alert(error.response.data.error);
+      return;
+    }
   };
   return (
     <>

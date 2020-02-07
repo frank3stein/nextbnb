@@ -7,7 +7,7 @@ export default async (req, res) => {
   }
 
   const { email, password, passwordConfirmation } = req.body;
-
+  console.log(req.body);
   if (password === passwordConfirmation) {
     try {
       const user = await User.create({ email, password });
@@ -26,7 +26,7 @@ export default async (req, res) => {
       );
     }
   } else {
-    console.log(password, passwordConfirmation);
+    // console.log(password, passwordConfirmation);
     return res.end(
       JSON.stringify({
         status: "failed",

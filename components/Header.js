@@ -1,8 +1,7 @@
-import Link from "next/link";
-
-import { useStoreActions } from "easy-peasy";
+import { useStoreActions, useStoreState } from "easy-peasy";
 
 export default props => {
+  const user = useStoreState(state => state.user.user);
   const setShowLoginModal = useStoreActions(
     actions => actions.modals.setShowLoginModal
   );
@@ -14,20 +13,29 @@ export default props => {
       <img src="/img/logo.png" alt="" />
       <nav>
         <ul>
-          <li>
-            <a href="#" onClick={() => setShowRegistrationModal()}>
-              Sign up
-            </a>
-          </li>
-          <li>
-            <a href="#" onClick={() => setShowLoginModal()}>
-              Log in
-            </a>
-          </li>
+          {user ? (
+            <li className="username">{user}</li>
+          ) : (
+            <>
+              <li>
+                <a href="#" onClick={() => setShowRegistrationModal()}>
+                  Sign up
+                </a>
+              </li>
+              <li>
+                <a href="#" onClick={() => setShowLoginModal()}>
+                  Log in
+                </a>
+              </li>
+            </>
+          )}
         </ul>
       </nav>
 
       <style jsx>{`
+        .username {
+          padding: 1em 0.5em;
+        }
         ul {
           margin: 0;
           padding: 0;

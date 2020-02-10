@@ -28,19 +28,20 @@ passport.use(
       }
 
       // Here we use Promise.all as we want to optimize the speed of our logged in users.
-      const [user, valid] = await Promise.all([
-        User.findOne({ where: { email: email } }),
-        user.isPasswordValid(password)
-      ]);
+      // Since user.isPasswordValid is dependent on the previous promise we can not use this
+      // const [user, valid] = await Promise.all([
+      //   User.findOne({ where: { email: email } }),
+      //   user.isPasswordValid(password)
+      // ]);
 
-      //   const user = await User.findOne({ where: { email: email } });
+      const user = await User.findOne({ where: { email: email } });
 
       if (!user) {
         done("User not found", null);
         return;
       }
 
-      //   const valid = await user.isPasswordValid(password);
+      const valid = await user.isPasswordValid(password);
 
       if (!valid) {
         done("Email and password do not match", null);
@@ -121,6 +122,60 @@ nextApp.prepare().then(() => {
         })
       );
     }
+
+    server.post("/api/auth/logout", (req, res) => {
+      req.logout();
+      req.session.destroy();
+      return res.end(
+        JSON.stringify({ status: "success", message: "Logged out" })
+      );
+    });
+  });
+
+  server.post("/api/auth/login", async (req, res) => {
+    passport.authenticate("local", (err, user, info) => {
+      if (err) {
+        res.statusCode = 500;
+        res.end(
+          JSON.stringify({
+            status: "error",
+            message: err
+          })
+        );
+        return;
+      }
+
+      if (!user) {
+        res.statusCode = 500;
+        res.end(
+          JSON.stringify({
+            status: "error",
+            message: "No user matching credentials"
+          })
+        );
+        return;
+      }
+
+      req.login(user, err => {
+        if (err) {
+          res.statusCode = 500;
+          res.end(
+            JSON.stringify({
+              status: "error",
+              message: err
+            })
+          );
+          return;
+        }
+
+        return res.end(
+          JSON.stringify({
+            status: "success",
+            message: "Logged in"
+          })
+        );
+      });
+    })(req, res, next);
   });
 
   server.all("*", (req, res) => {

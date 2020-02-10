@@ -1,7 +1,11 @@
 import { useStoreActions, useStoreState } from "easy-peasy";
+import axios from "axios";
 
 export default props => {
   const user = useStoreState(state => state.user.user);
+  const setUser = useStoreActions((actions, payload) =>
+    actions.user.setUser(payload)
+  );
   const setShowLoginModal = useStoreActions(
     actions => actions.modals.setShowLoginModal
   );
@@ -14,7 +18,18 @@ export default props => {
       <nav>
         <ul>
           {user ? (
-            <li className="username">{user}</li>
+            <>
+              <li className="username">{user}</li>
+              <li
+                className="username"
+                onClick={async () => {
+                  await axios.post("api/auth/logout");
+                  setUser(null);
+                }}
+              >
+                Log out
+              </li>
+            </>
           ) : (
             <>
               <li>

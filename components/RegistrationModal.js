@@ -1,3 +1,4 @@
+import { useStoreActions, useStore } from "easy-peasy";
 const { useState } = require("react");
 const axios = require("axios");
 
@@ -5,6 +6,8 @@ export default props => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const setUser = useStoreActions(actions => actions.user.setUser);
+  const setHideModal = useStoreActions(actions => actions.modals.setHideModal);
   const submit = async () => {
     // const response = await axios.post("/api/auth/register", {
     //   email,
@@ -23,11 +26,14 @@ export default props => {
         alert(response.data.error);
         return;
       }
+      setUser(email);
+      setHideModal();
     } catch (error) {
       console.log(error);
       alert(error.response.data.error);
       return;
     }
+    event.preventDefault();
   };
   return (
     <>

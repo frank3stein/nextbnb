@@ -7,12 +7,51 @@ const nextApp = next({ dev });
 const handle = nextApp.getRequestHandler();
 const session = require("express-session");
 const SequelizeStore = require("connect-session-sequelize")(session.Store);
-const sequelize = require("./model.js").sequelize;
+const sequelize = require("./database.js");
 const sessionStore = new SequelizeStore({
   db: sequelize
 });
-const User = require("./model.js").User;
+const Op = require("sequelize").Op;
+const User = require("./models/user.js");
+const House = require("./models/house");
+const Review = require("./models/review");
+const Booking = require("./models/booking");
 // sessionStore.sync(); // you need to run this just once so the table is created.
+// Run the below code once so that the database is updated.
+// House.sync();
+// Review.sync();
+
+// If you want to update the models and want the changes to be reflected
+// House.sync({ alter: true });
+// Review.sync({ alter: true });
+// User.sync({ alter: true });
+// Booking.sync({ alter: true });
+
+const getDatesBetweenDates = (startDate, endDate) => {
+  let dates = [];
+  while (startDate < endDate) {
+    dates = [...dates, new Date(startDate)];
+    startDate.setDate(startDate.getDate() + 1);
+  }
+  dates = [...dates, endDate];
+  return dates;
+};
+
+const canBookThoseDates = async (houseId, startDate, endDate) => {
+  const results = await Booking.findAll({
+    where: {
+      houseId: houseId,
+      startDate: {
+        [Op.lte]: new Date(endDate)
+      },
+      endDate: {
+        [Op.gte]: new Date(startDate)
+      }
+    }
+  });
+  return !(results.length > 0);
+};
+
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 passport.use(
@@ -81,6 +120,65 @@ nextApp.prepare().then(() => {
     passport.session(),
     bodyParser.json()
   );
+
+  server.get("/api/houses", (req, res) => {
+    House.findAndCountAll().then(result => {
+      const houses = result.rows.map(house => {
+        return Review.findAndCountAll({
+          where: {
+            houseId: house.id
+          }
+        }).then(reviews => {
+          // console.log(reviews);
+          house.dataValues.reviewsCount = reviews.count;
+          house.dataValues.reviews = reviews.rows.map(review => {
+            return review.dataValues;
+          });
+          return house.dataValues;
+        });
+      });
+      Promise.all(houses).then(houses => {
+        res.writeHead(200, {
+          "Content-Type": "application/json"
+        });
+        res.end(JSON.stringify(houses));
+      });
+    });
+  });
+
+  server.get("/api/houses/:id", (req, res) => {
+    const { id } = req.params;
+
+    House.findByPk(id).then(house => {
+      if (house) {
+        Review.findAndCountAll({
+          where: {
+            houseId: house.id
+          }
+        }).then(reviews => {
+          house.dataValues.reviews = reviews.rows.map(review => {
+            return review.dataValues;
+          });
+          house.dataValues.reviewsCount = reviews.count;
+          res.writeHead(200, {
+            "Content-Type": "application/json"
+          });
+          console.log(house.dataValues);
+          res.end(JSON.stringify(house.dataValues));
+        });
+      } else {
+        res.writeHead(404, {
+          "Content-Type": "application/json"
+        });
+        res.end(
+          JSON.stringify({
+            message: `Not found`
+          })
+        );
+      }
+    });
+  });
+
   server.post("/api/auth/register", async (req, res) => {
     console.log(req.body);
     const { email, password, passwordConfirmation } = req.body;
@@ -176,6 +274,108 @@ nextApp.prepare().then(() => {
         );
       });
     })(req, res, next);
+  });
+
+  server.post("/api/houses/check", async (req, res) => {
+    const startDate = req.body.startDate;
+    const endDate = req.body.endDate;
+    const houseId = req.body.houseId;
+
+    let message = "free";
+    if (!(await canBookThoseDates(houseId, startDate, endDate))) {
+      message = "busy";
+    }
+
+    res.json({
+      status: "success",
+      message: message
+    });
+  });
+
+  server.post("/api/houses/reserve", (req, res) => {
+    if (!req.session.passport) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    if (
+      !(await canBookThoseDates(
+        req.body.houseId,
+        req.body.startDate,
+        req.body.endDate
+      ))
+    ) {
+      //busy
+      res.writeHead(500, {
+        'Content-Type': 'application/json'
+      })
+      res.end(
+        JSON.stringify({
+          status: 'error',
+          message: 'House is already booked'
+        })
+      )
+  
+      return
+    }
+
+    const userEmail = req.session.passport.user;
+
+    User.findOne({ where: { email: userEmail } }).then(user => {
+      Booking.create({
+        houseId: req.body.houseId,
+        userId: user.id,
+        startDate: req.body.startDate,
+        endDate: req.body.endDate
+      }).then(() => {
+        res.writeHead(200, {
+          "Content-Type": "application/json"
+        });
+        res.end(JSON.stringify({ status: "success", message: "ok" }));
+      });
+    });
+  });
+
+  server.post("/api/houses/booked", async (req, res) => {
+    const { houseId } = req.body;
+
+    const results = await Booking.findAll({
+      where: {
+        houseId: houseId,
+        endDate: {
+          [Op.gte]: new Date()
+        }
+      }
+    });
+
+    let bookedDates = [];
+
+    for (const result of results) {
+      const dates = getDatesBetweenDates(
+        new Date(result.startDate),
+        new Date(result.endDate)
+      );
+
+      bookedDates = [...bookedDates, ...dates];
+    }
+
+    //remove duplicates
+    bookedDates = [...new Set(bookedDates.map(date => date))];
+
+    res.json({
+      status: "success",
+      message: "ok",
+      dates: bookedDates
+    });
   });
 
   server.all("*", (req, res) => {

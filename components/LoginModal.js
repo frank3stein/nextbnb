@@ -29,7 +29,7 @@ export default props => {
               alert(error.response.data.message);
               return;
             }
-            alert("Log in!");
+            // alert("Log in!");
             event.preventDefault();
           }}
         >

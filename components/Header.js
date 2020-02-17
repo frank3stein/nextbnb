@@ -2,16 +2,14 @@ import { useStoreActions, useStoreState } from "easy-peasy";
 import axios from "axios";
 
 export default props => {
-  const user = useStoreState(state => state.user.user);
-  const setUser = useStoreActions((actions, payload) =>
-    actions.user.setUser(payload)
-  );
   const setShowLoginModal = useStoreActions(
     actions => actions.modals.setShowLoginModal
   );
   const setShowRegistrationModal = useStoreActions(
     actions => actions.modals.setShowRegistrationModal
   );
+  const user = useStoreState(state => state.user.user);
+  const setUser = useStoreActions(actions => actions.user.setUser);
   return (
     <div className="nav-container">
       <img src="/img/logo.png" alt="" />
@@ -20,14 +18,16 @@ export default props => {
           {user ? (
             <>
               <li className="username">{user}</li>
-              <li
-                className="username"
-                onClick={async () => {
-                  await axios.post("api/auth/logout");
-                  setUser(null);
-                }}
-              >
-                Log out
+              <li className="">
+                <a
+                  href="#"
+                  onClick={async () => {
+                    await axios.post("api/auth/logout");
+                    setUser(null);
+                  }}
+                >
+                  Log out
+                </a>
               </li>
             </>
           ) : (

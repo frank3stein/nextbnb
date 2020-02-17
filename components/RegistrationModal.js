@@ -8,7 +8,7 @@ export default props => {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const setUser = useStoreActions(actions => actions.user.setUser);
   const setHideModal = useStoreActions(actions => actions.modals.setHideModal);
-  const submit = async () => {
+  const submit = async event => {
     // const response = await axios.post("/api/auth/register", {
     //   email,
     //   password,

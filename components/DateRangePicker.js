@@ -29,12 +29,15 @@ const format = "dd MMM yyyy";
 //   return dayCount;
 // };
 
-export default ({ datesChanged }) => {
+export default ({ datesChanged, bookedDates }) => {
   const today = new Date();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(tomorrow);
+  bookedDates = bookedDates.map(date => {
+    return new Date(date);
+  });
   return (
     <div className="date-range-picker-container">
       <div>
@@ -47,9 +50,12 @@ export default ({ datesChanged }) => {
           placeholder={`${dateFnsFormat(startDate, format)}`}
           dayPickerProps={{
             modifiers: {
-              disabled: {
-                before: startDate
-              }
+              disabled: [
+                ...bookedDates,
+                {
+                  before: new Date()
+                }
+              ]
             }
           }}
           onDayChange={day => {
@@ -74,7 +80,7 @@ export default ({ datesChanged }) => {
           dayPickerProps={{
             modifiers: {
               disabled: [
-                startDate,
+                ...bookedDates,
                 {
                   before: startDate
                 }

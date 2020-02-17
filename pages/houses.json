@@ -40,6 +40,18 @@
     "price": "70.00",
     "rating": 4.77,
     "reviewsCount": 246,
-    "superhost": false
+    "superhost": false,
+    "description": "Nice house, you won't regret it.",
+    "guests": 3,
+    "bedrooms": 2,
+    "beds": 4,
+    "bath": 1,
+    "amenities": {
+      "wifi": true,
+      "kitchen": true,
+      "heating": true,
+      "freeParking": true
+    },
+    "entirePlace": true
   }
 ]

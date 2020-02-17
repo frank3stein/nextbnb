@@ -1,30 +1,25 @@
-// import { Sequelize, Model, DataTypes } from "sequelize";
-// import { user, password, host, database } from "./database";
-// import bcrypt from "bcrypt";
-
-const Sequelize = require("sequelize");
 const bcrypt = require("bcrypt");
+const Sequelize = require("sequelize");
 
-const Model = Sequelize.Model;
-const DataTypes = Sequelize.DataTypes;
+const sequelize = require("../database.js");
 
-class User extends Model {}
+class User extends Sequelize.Model {}
 
 User.init(
   {
     email: {
-      type: DataTypes.STRING,
+      type: Sequelize.DataTypes.STRING,
       allowNull: false
     },
     password: {
-      type: DataTypes.STRING,
+      type: Sequelize.DataTypes.STRING,
       allowNull: false
     }
   },
   {
     sequelize,
     modelName: "user",
-    timestamps: false, // if true sequelize expects createdAt and updatedAt fields in the table
+    timestamps: false,
     hooks: {
       beforeCreate: async user => {
         const saltRounds = 10;
@@ -39,5 +34,4 @@ User.prototype.isPasswordValid = async function(password) {
   return await bcrypt.compare(password, this.password);
 };
 
-exports.User = User;
-exports.sequelize = sequelize;
+module.exports = User;

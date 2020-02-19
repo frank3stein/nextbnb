@@ -1,5 +1,6 @@
 import { useStoreActions, useStoreState } from "easy-peasy";
 import axios from "axios";
+import Link from "next/link";
 
 export default props => {
   const setShowLoginModal = useStoreActions(
@@ -12,12 +13,19 @@ export default props => {
   const setUser = useStoreActions(actions => actions.user.setUser);
   return (
     <div className="nav-container">
-      <img src="/img/logo.png" alt="" />
+      <a href="/">
+        <img src="/img/logo.png" alt="" />
+      </a>
       <nav>
         <ul>
           {user ? (
             <>
               <li className="username">{user}</li>
+              <li>
+                <Link href="/bookings">
+                  <a>Bookings</a>
+                </Link>
+              </li>
               <li className="">
                 <a
                   href="#"

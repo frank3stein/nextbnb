@@ -15,15 +15,16 @@
   "dependencies": {
     "@zeit/next-css": "^1.0.1",
     "axios": "^0.19.2",
-    "bcrypt": "^3.0.7",
+    "bcrypt": "^3.0.8",
     "body-parser": "^1.19.0",
-    "connect-session-sequelize": "^6.0.0",
+    "connect-session-sequelize": "^6.1.1",
     "date-fns": "^2.9.0",
+    "dotenv": "^8.2.0",
     "easy-peasy": "^3.3.0",
     "express": "^4.17.1",
     "express-session": "^1.17.0",
     "isomorphic-unfetch": "^3.0.0",
-    "next": "^9.1.6",
+    "next": "^9.2.2",
     "nodemon": "^2.0.2",
     "passport": "^0.4.1",
     "passport-local": "^1.0.0",
@@ -31,6 +32,7 @@
     "react": "^16.12.0",
     "react-day-picker": "^7.4.0",
     "react-dom": "^16.12.0",
-    "sequelize": "^5.21.3"
+    "sequelize": "^5.21.4",
+    "stripe": "^8.19.0"
   }
 }

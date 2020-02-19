@@ -16,16 +16,19 @@ const User = require("./models/user.js");
 const House = require("./models/house");
 const Review = require("./models/review");
 const Booking = require("./models/booking");
-// sessionStore.sync(); // you need to run this just once so the table is created.
+const dotenv = require("dotenv");
+
+dotenv.config();
+sessionStore.sync(); // you need to run this just once so the table is created.
 // Run the below code once so that the database is updated.
 // House.sync();
 // Review.sync();
 
 // If you want to update the models and want the changes to be reflected
-// House.sync({ alter: true });
-// Review.sync({ alter: true });
-// User.sync({ alter: true });
-// Booking.sync({ alter: true });
+House.sync({ alter: true });
+Review.sync({ alter: true });
+User.sync({ alter: true });
+Booking.sync({ alter: true });
 
 const getDatesBetweenDates = (startDate, endDate) => {
   let dates = [];
@@ -118,7 +121,12 @@ nextApp.prepare().then(() => {
     }),
     passport.initialize(),
     passport.session(),
-    bodyParser.json()
+    bodyParser.json({
+      verify: (req, res, buf) => {
+        //make rawBody available
+        req.rawBody = buf;
+      }
+    })
   );
 
   server.get("/api/houses", (req, res) => {
@@ -129,7 +137,6 @@ nextApp.prepare().then(() => {
             houseId: house.id
           }
         }).then(reviews => {
-          // console.log(reviews);
           house.dataValues.reviewsCount = reviews.count;
           house.dataValues.reviews = reviews.rows.map(review => {
             return review.dataValues;
@@ -163,7 +170,6 @@ nextApp.prepare().then(() => {
           res.writeHead(200, {
             "Content-Type": "application/json"
           });
-          console.log(house.dataValues);
           res.end(JSON.stringify(house.dataValues));
         });
       } else {
@@ -180,7 +186,7 @@ nextApp.prepare().then(() => {
   });
 
   server.post("/api/auth/register", async (req, res) => {
-    console.log(req.body);
+    // console.log(req.body);
     const { email, password, passwordConfirmation } = req.body;
 
     if (password === passwordConfirmation) {
@@ -212,7 +218,6 @@ nextApp.prepare().then(() => {
         );
       }
     } else {
-      console.log(password, passwordConfirmation);
       return res.end(
         JSON.stringify({
           status: "failed",
@@ -277,12 +282,13 @@ nextApp.prepare().then(() => {
   });
 
   server.post("/api/houses/check", async (req, res) => {
-    const startDate = req.body.startDate;
-    const endDate = req.body.endDate;
-    const houseId = req.body.houseId;
-
     let message = "free";
-    if (!(await canBookThoseDates(houseId, startDate, endDate))) {
+    const isBookable = await canBookThoseDates(
+      req.body.houseId,
+      req.body.startDate,
+      req.body.endDate
+    );
+    if (!isBookable) {
       message = "busy";
     }
 
@@ -292,7 +298,8 @@ nextApp.prepare().then(() => {
     });
   });
 
-  server.post("/api/houses/reserve", (req, res) => {
+  server.post("/api/houses/reserve", async (req, res) => {
+    console.log(req);
     if (!req.session.passport) {
       res.writeHead(403, {
         "Content-Type": "application/json"
@@ -306,26 +313,22 @@ nextApp.prepare().then(() => {
 
       return;
     }
+    const isBookable = await canBookThoseDates(
+      req.body.houseId,
+      req.body.startDate,
+      req.body.endDate
+    );
 
-    if (
-      !(await canBookThoseDates(
-        req.body.houseId,
-        req.body.startDate,
-        req.body.endDate
-      ))
-    ) {
-      //busy
+    if (!isBookable) {
       res.writeHead(500, {
-        'Content-Type': 'application/json'
-      })
+        "Content-Type": "application/json"
+      });
       res.end(
         JSON.stringify({
-          status: 'error',
-          message: 'House is already booked'
+          status: "error",
+          message: "House is already booked"
         })
-      )
-  
-      return
+      );
     }
 
     const userEmail = req.session.passport.user;
@@ -335,7 +338,8 @@ nextApp.prepare().then(() => {
         houseId: req.body.houseId,
         userId: user.id,
         startDate: req.body.startDate,
-        endDate: req.body.endDate
+        endDate: req.body.endDate,
+        sessionId: req.body.sessionId
       }).then(() => {
         res.writeHead(200, {
           "Content-Type": "application/json"
@@ -375,6 +379,137 @@ nextApp.prepare().then(() => {
       status: "success",
       message: "ok",
       dates: bookedDates
+    });
+  });
+
+  server.post("/api/stripe/session", async (req, res) => {
+    const amount = req.body.amount;
+
+    const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          name: "Booking house on NextBnb",
+          amount: amount * 100,
+          currency: "usd",
+          quantity: 1
+        }
+      ],
+      success_url: process.env.BASE_URL + "/bookings",
+      cancel_url: process.env.BASE_URL + "/bookings"
+    });
+
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+    res.end(
+      JSON.stringify({
+        status: "success",
+        sessionId: session.id,
+        stripePublicKey: process.env.STRIPE_PUBLIC_KEY
+      })
+    );
+  });
+
+  server.post("/api/stripe/webhook", async (req, res) => {
+    const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const sig = req.headers["stripe-signature"];
+
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    } catch (err) {
+      res.writeHead(400, {
+        "Content-Type": "application/json"
+      });
+      console.error(err.message);
+      res.end(
+        JSON.stringify({
+          status: "success",
+          message: `Webhook Error: ${err.message}`
+        })
+      );
+      return;
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const sessionId = event.data.object.id;
+
+      try {
+        Booking.update({ paid: true }, { where: { sessionId } });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+    res.end(JSON.stringify({ received: true }));
+  });
+
+  // need to call this to clean the unpaid bookings so others can book them.
+  server.post("/api/bookings/clean", (req, res) => {
+    Booking.destroy({
+      where: {
+        paid: false
+      }
+    });
+
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+
+    res.end(
+      JSON.stringify({
+        status: "success",
+        message: "ok"
+      })
+    );
+  });
+
+  server.get("/api/bookings/list", async (req, res) => {
+    if (!req.session.passport || !req.session.passport.user) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    const userEmail = req.session.passport.user;
+    const user = await User.findOne({ where: { email: userEmail } });
+
+    Booking.findAndCountAll({
+      where: {
+        paid: true,
+        userId: user.id,
+        endDate: { [Op.gte]: new Date() }
+      },
+      order: [["startDate", "ASC"]]
+    }).then(async result => {
+      const bookings = await Promise.all(
+        result.rows.map(async booking => {
+          const data = {};
+          data.booking = booking.dataValues;
+          data.house = (await House.findByPk(data.booking.houseId)).dataValues;
+          return data;
+        })
+      );
+
+      res.writeHead(200, {
+        "Content-Type": "application/json"
+      });
+      res.end(JSON.stringify(bookings));
     });
   });
 

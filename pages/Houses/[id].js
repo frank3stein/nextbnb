@@ -7,6 +7,7 @@ import DateRangePicker from "../../components/DateRangePicker";
 import calculateNights from "../../utils/calculate-nights.js";
 import { useState } from "react";
 import { useStoreActions, useStoreState } from "easy-peasy";
+// import { Stripe } from "stripe";
 
 const getBookedDates = async house => {
   try {
@@ -28,7 +29,6 @@ const getBookedDates = async house => {
 
 const canReserve = async (houseId, startDate, endDate) => {
   try {
-    const houseId = house.id;
     const response = await axios.post(
       "http://localhost:3000/api/houses/check",
       { houseId, startDate, endDate }
@@ -44,6 +44,16 @@ const canReserve = async (houseId, startDate, endDate) => {
     console.error(error);
     return;
   }
+};
+
+const getDatesBetweenDates = (startDate, endDate) => {
+  let dates = [];
+  while (startDate < endDate) {
+    dates = [...dates, new Date(startDate)];
+    startDate.setDate(startDate.getDate() + 1);
+  }
+  dates = [...dates, endDate];
+  return dates;
 };
 
 const House = ({ house, bookedDates }) => {
@@ -98,16 +108,38 @@ const House = ({ house, bookedDates }) => {
                   }
 
                   try {
+                    const sessionResponse = await axios.post(
+                      "/api/stripe/session",
+                      {
+                        amount:
+                          house.price *
+                          getDatesBetweenDates(startDate, endDate).length
+                      }
+                    );
+                    if (sessionResponse.data.status === "error") {
+                      alert(sessionResponse.data.message);
+                      return;
+                    }
+                    const stripePublicKey =
+                      sessionResponse.data.stripePublicKey;
+
+                    const sessionId = sessionResponse.data.sessionId;
+
                     const response = await axios.post("/api/houses/reserve", {
                       houseId: house.id,
                       startDate,
-                      endDate
+                      endDate,
+                      sessionId
                     });
 
                     if (response.data.status === "error") {
                       alert(response.data.message);
                       return;
                     }
+                    const stripe = Stripe(stripePublicKey);
+                    const { error } = await stripe.redirectToCheckout({
+                      sessionId
+                    });
                   } catch (err) {
                     console.log(err);
                     return;

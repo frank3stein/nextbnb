@@ -4,6 +4,7 @@ import Modal from "./Modal";
 import RegistrationModal from "../components/RegistrationModal";
 import LoginModal from "../components/LoginModal";
 import { useStoreState, useStoreActions } from "easy-peasy";
+import Head from "next/head";
 
 const Layout = props => {
   // const [showModal, setShowModal] = useState(true);
@@ -24,6 +25,9 @@ const Layout = props => {
   );
   return (
     <div>
+      <Head>
+        <script src="https://js.stripe.com/v3/"></script>
+      </Head>
       <Header {...props}></Header>
       <main>{props.content}</main>
       {showModal && (

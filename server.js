@@ -17,9 +17,11 @@ const House = require("./models/house");
 const Review = require("./models/review");
 const Booking = require("./models/booking");
 const dotenv = require("dotenv");
-
+const sanitizeHtml = require("sanitize-html");
+const fileUpload = require("express-fileupload");
+const randomString = require("randomstring");
 dotenv.config();
-sessionStore.sync(); // you need to run this just once so the table is created.
+// sessionStore.sync(); // you need to run this just once so the table is created.
 // Run the below code once so that the database is updated.
 // House.sync();
 // Review.sync();
@@ -29,6 +31,8 @@ House.sync({ alter: true });
 Review.sync({ alter: true });
 User.sync({ alter: true });
 Booking.sync({ alter: true });
+
+// TODO: Need to separate the different Routes.
 
 const getDatesBetweenDates = (startDate, endDate) => {
   let dates = [];
@@ -107,6 +111,7 @@ passport.deserializeUser((email, done) => {
 
 nextApp.prepare().then(() => {
   const server = express();
+
   server.use(
     session({
       secret: "343ji43j4n3jn4jk3n", //enter a random string here
@@ -119,14 +124,15 @@ nextApp.prepare().then(() => {
       },
       store: sessionStore
     }),
-    passport.initialize(),
-    passport.session(),
     bodyParser.json({
       verify: (req, res, buf) => {
         //make rawBody available
         req.rawBody = buf;
       }
-    })
+    }),
+    passport.initialize(),
+    passport.session(),
+    fileUpload()
   );
 
   server.get("/api/houses", (req, res) => {
@@ -225,14 +231,14 @@ nextApp.prepare().then(() => {
         })
       );
     }
+  });
 
-    server.post("/api/auth/logout", (req, res) => {
-      req.logout();
-      req.session.destroy();
-      return res.end(
-        JSON.stringify({ status: "success", message: "Logged out" })
-      );
-    });
+  server.post("/api/auth/logout", (req, res) => {
+    req.logout();
+    req.session.destroy();
+    return res.end(
+      JSON.stringify({ status: "success", message: "Logged out" })
+    );
   });
 
   server.post("/api/auth/login", async (req, res) => {
@@ -299,7 +305,7 @@ nextApp.prepare().then(() => {
   });
 
   server.post("/api/houses/reserve", async (req, res) => {
-    console.log(req);
+    // console.log(req);
     if (!req.session.passport) {
       res.writeHead(403, {
         "Content-Type": "application/json"
@@ -479,7 +485,7 @@ nextApp.prepare().then(() => {
       res.end(
         JSON.stringify({
           status: "error",
-          message: "Unauthorized"
+          message: `To endpoint ${(arguments[0], unauthorized)}`
         })
       );
 
@@ -510,6 +516,204 @@ nextApp.prepare().then(() => {
         "Content-Type": "application/json"
       });
       res.end(JSON.stringify(bookings));
+    });
+  });
+
+  server.get("/api/host/list", async (req, res) => {
+    if (!req.session.passport || !req.session.passport.user) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    const userEmail = req.session.passport.user;
+    const user = await User.findOne({ where: { email: userEmail } });
+
+    const houses = await House.findAll({
+      where: {
+        host: user.id
+      }
+    });
+    const houseIds = houses.map(house => house.dataValues.id);
+
+    const bookingsData = await Booking.findAll({
+      where: {
+        paid: true,
+        houseId: {
+          [Op.in]: houseIds
+        },
+        endDate: {
+          [Op.gte]: new Date()
+        }
+      },
+      order: [["startDate", "ASC"]]
+    });
+
+    const bookings = await Promise.all(
+      bookingsData.map(async booking => {
+        return {
+          booking: booking.dataValues,
+          house: houses.filter(
+            house => house.dataValues.id === booking.dataValues.houseId
+          )[0].dataValues
+        };
+      })
+    );
+
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+    res.end(
+      JSON.stringify({
+        bookings,
+        houses
+      })
+    );
+  });
+
+  server.post("/api/host/new", async (req, res) => {
+    const houseData = req.body.house;
+    houseData.description = sanitizeHtml(houseData.description, {
+      allowedTags: ["b", "i", "em", "strong", "p", "br"]
+    });
+    if (!req.session.passport) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    const userEmail = req.session.passport.user;
+    User.findOne({ where: { email: userEmail } }).then(user => {
+      houseData.host = user.id;
+      House.create(houseData).then(() => {
+        res.writeHead(200, {
+          "Content-Type": "application/json"
+        });
+        res.end(JSON.stringify({ status: "success", message: "ok" }));
+      });
+    });
+  });
+
+  server.post("/api/host/edit", async (req, res) => {
+    const houseData = req.body.house;
+    houseData.description = sanitizeHtml(houseData.description, {
+      allowedTags: ["b", "i", "em", "strong", "p", "br"]
+    });
+    if (!req.session.passport) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    const userEmail = req.session.passport.user;
+    User.findOne({ where: { email: userEmail } }).then(user => {
+      House.findByPk(houseData.id).then(house => {
+        if (house) {
+          if (house.host !== user.id) {
+            res.writeHead(403, {
+              "Content-Type": "application/json"
+            });
+            res.end(
+              JSON.stringify({
+                status: "error",
+                message: "Unauthorized"
+              })
+            );
+
+            return;
+          }
+
+          House.update(houseData, {
+            where: {
+              id: houseData.id
+            }
+          })
+            .then(() => {
+              res.writeHead(200, {
+                "Content-Type": "application/json"
+              });
+              res.end(JSON.stringify({ status: "success", message: "ok" }));
+            })
+            .catch(err => {
+              res.writeHead(500, {
+                "Content-Type": "application/json"
+              });
+              res.end(JSON.stringify({ status: "error", message: err.name }));
+            });
+        } else {
+          res.writeHead(404, {
+            "Content-Type": "application/json"
+          });
+          res.end(
+            JSON.stringify({
+              message: `Not found`
+            })
+          );
+          return;
+        }
+      });
+    });
+  });
+
+  server.post("/api/host/image", (req, res) => {
+    if (!req.session.passport) {
+      res.writeHead(403, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({
+          status: "error",
+          message: "Unauthorized"
+        })
+      );
+
+      return;
+    }
+
+    const image = req.files.image;
+    const fileName = randomstring.generate(7) + image.name.replace(/\s/g, "");
+    const path = __dirname + "/public/img/houses/" + fileName;
+
+    image.mv(path, error => {
+      if (error) {
+        console.error(error);
+        res.writeHead(500, {
+          "Content-Type": "application/json"
+        });
+        res.end(JSON.stringify({ status: "error", message: error }));
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "application/json"
+      });
+      res.end(
+        JSON.stringify({ status: "success", path: "/img/houses/" + fileName })
+      );
     });
   });
 

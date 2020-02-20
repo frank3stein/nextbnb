@@ -26,12 +26,26 @@ export default props => {
                   <a>Bookings</a>
                 </Link>
               </li>
+              <li>
+                <Link href="/host">
+                  <a>Your Houses</a>
+                </Link>
+              </li>
+              <li>
+                <Link href="/host/new">
+                  <a>Add House</a>
+                </Link>
+              </li>
               <li className="">
                 <a
                   href="#"
                   onClick={async () => {
-                    await axios.post("api/auth/logout");
-                    setUser(null);
+                    try {
+                      await axios.post("api/auth/logout");
+                      setUser(null);
+                    } catch (error) {
+                      console.log(error);
+                    }
                   }}
                 >
                   Log out

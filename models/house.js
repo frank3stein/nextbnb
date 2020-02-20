@@ -20,7 +20,11 @@ House.init(
       type: Sequelize.DataTypes.FLOAT({ decimals: 2 }),
       allowNull: true
     },
-    superhost: { type: Sequelize.DataTypes.BOOLEAN, allowNull: false },
+    superhost: {
+      type: Sequelize.DataTypes.BOOLEAN,
+      allowNull: true,
+      defaultValue: false
+    },
     description: { type: Sequelize.DataTypes.TEXT },
     guests: { type: Sequelize.DataTypes.INTEGER, allowNull: false },
     bedrooms: { type: Sequelize.DataTypes.INTEGER, allowNull: false },

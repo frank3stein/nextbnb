@@ -7,12 +7,12 @@ import { useState } from "react";
 import calculateNights from "../utils/calculate-nights";
 
 const parseDate = (str, format, locale) => {
-  const parsed = dateFnsParse(str, format, new Date(), { locale });
-  return DateUtils.isDate(parsed) ? parsed : null;
+    const parsed = dateFnsParse(str, format, new Date(), { locale });
+    return DateUtils.isDate(parsed) ? parsed : null;
 };
 
 const formatDate = (date, format, locale) =>
-  dateFnsFormat(date, format, { locale });
+    dateFnsFormat(date, format, { locale });
 
 const format = "dd MMM yyyy";
 
@@ -29,71 +29,65 @@ const format = "dd MMM yyyy";
 //   return dayCount;
 // };
 
-export default ({ datesChanged, bookedDates }) => {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(tomorrow);
-  bookedDates = bookedDates.map(date => {
-    return new Date(date);
-  });
-  return (
-    <div className="date-range-picker-container">
-      <div>
-        <label htmlFor="">From:</label>
-        <DayPickerInput
-          formatDate={formatDate}
-          format={format}
-          value={startDate}
-          parseDate={parseDate}
-          placeholder={`${dateFnsFormat(startDate, format)}`}
-          dayPickerProps={{
-            modifiers: {
-              disabled: [
-                ...bookedDates,
-                {
-                  before: new Date()
-                }
-              ]
-            }
-          }}
-          onDayChange={day => {
-            setStartDate(day);
-            const newEndDate = new Date(day);
-            if (calculateNights(day, endDate) < 1) {
-              newEndDate.setDate(newEndDate.getDate() + 1);
-              setEndDate(newEndDate);
-            }
-            datesChanged(day, newEndDate);
-          }}
-        />
-      </div>
-      <div>
-        <label htmlFor="">To:</label>
-        <DayPickerInput
-          formatDate={formatDate}
-          format={format}
-          parseDate={parseDate}
-          value={endDate}
-          placeholder={`${dateFnsFormat(endDate, format)}`}
-          dayPickerProps={{
-            modifiers: {
-              disabled: [
-                ...bookedDates,
-                {
-                  before: startDate
-                }
-              ]
-            }
-          }}
-          onDayChange={day => {
-            setEndDate(day);
-            datesChanged(startDate, day);
-          }}
-        />
-      </div>
-      <style jsx>{`
+export default ({ datesChanged }) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const [startDate, setStartDate] = useState(today);
+    const [endDate, setEndDate] = useState(tomorrow);
+    return (
+        <div className="date-range-picker-container">
+            <div>
+                <label htmlFor="">From:</label>
+                <DayPickerInput
+                    formatDate={formatDate}
+                    format={format}
+                    value={startDate}
+                    parseDate={parseDate}
+                    placeholder={`${dateFnsFormat(startDate, format)}`}
+                    dayPickerProps={{
+                        modifiers: {
+                            disabled: {
+                                before: startDate
+                            }
+                        }
+                    }}
+                    onDayChange={day => {
+                        setStartDate(day);
+                        const newEndDate = new Date(day);
+                        if (calculateNights(day, endDate) < 1) {
+                            newEndDate.setDate(newEndDate.getDate() + 1);
+                            setEndDate(newEndDate);
+                        }
+                        datesChanged(day, newEndDate);
+                    }}
+                />
+            </div>
+            <div>
+                <label htmlFor="">To:</label>
+                <DayPickerInput
+                    formatDate={formatDate}
+                    format={format}
+                    parseDate={parseDate}
+                    value={endDate}
+                    placeholder={`${dateFnsFormat(endDate, format)}`}
+                    dayPickerProps={{
+                        modifiers: {
+                            disabled: [
+                                startDate,
+                                {
+                                    before: startDate
+                                }
+                            ]
+                        }
+                    }}
+                    onDayChange={day => {
+                        setEndDate(day);
+                        datesChanged(startDate, day);
+                    }}
+                />
+            </div>
+            <style jsx>{`
         .date-range-picker-container div {
           display: grid;
           border: 1px solid #ddd;
@@ -104,13 +98,13 @@ export default ({ datesChanged, bookedDates }) => {
           padding-top: 10px;
         }
       `}</style>
-      <style jsx global>{`
+            <style jsx global>{`
         .DayPickerInput input {
           width: 120px;
           padding: 10px;
           font-size: 16px;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 };
